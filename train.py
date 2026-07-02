@@ -37,13 +37,18 @@ def parse_args() -> argparse.Namespace:
 
 
 @torch.no_grad()
-def evaluate(model, tokenizer: TinyTokenizer, device: torch.device) -> float:
+def evaluate(
+    model,
+    tokenizer: TinyTokenizer,
+    device: torch.device,
+    max_new_tokens: int,
+) -> float:
     prompts, digits = all_digit_prompts(tokenizer, device)
     completions, _, _ = sample_completions(
         model=model,
         prompts=prompts,
         group_size=1,
-        max_new_tokens=2,
+        max_new_tokens=max_new_tokens,
         eos_id=tokenizer.eos_id,
         temperature=0.1,
     )
@@ -117,11 +122,11 @@ def main() -> None:
                 f"adv_std={advantages.std(unbiased=False).item():.3f} "
                 f"loss={stats['loss']:.4f} ref_kl={stats['ref_kl']:.4f} "
                 f"clip={stats['clip_frac']:.3f}"
-            )
+        )
         if step % args.eval_every == 0:
-            evaluate(policy, tokenizer, device)
+            evaluate(policy, tokenizer, device, args.max_new_tokens)
 
-    evaluate(policy, tokenizer, device)
+    evaluate(policy, tokenizer, device, args.max_new_tokens)
 
 
 if __name__ == "__main__":
