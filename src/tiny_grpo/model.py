@@ -7,6 +7,13 @@ from torch import nn
 
 
 class TinyCausalTransformer(nn.Module):
+    """A small decoder-only language model for the toy GRPO task.
+
+    The model predicts the next token for a sequence of token ids. It uses
+    `nn.TransformerEncoder` with a causal attention mask, which makes it behave
+    like a decoder-only Transformer while keeping the implementation compact.
+    """
+
     def __init__(
         self,
         vocab_size: int,
@@ -16,6 +23,16 @@ class TinyCausalTransformer(nn.Module):
         n_layers: int = 2,
         dropout: float = 0.0,
     ) -> None:
+        """Create the Transformer, embeddings, normalization, and LM head.
+
+        Args:
+            vocab_size: Number of tokens in `TinyTokenizer`.
+            max_seq_len: Maximum prompt-plus-completion length.
+            d_model: Hidden size of token and position embeddings.
+            n_heads: Number of attention heads per layer.
+            n_layers: Number of Transformer blocks.
+            dropout: Dropout probability used inside Transformer layers.
+        """
         super().__init__()
         self.max_seq_len = max_seq_len
         self.token_emb = nn.Embedding(vocab_size, d_model)
@@ -36,6 +53,7 @@ class TinyCausalTransformer(nn.Module):
         self.apply(self._init_weights)
 
     def _init_weights(self, module: nn.Module) -> None:
+        """Initialize linear and embedding weights with small Gaussian noise."""
         if isinstance(module, nn.Linear):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
@@ -44,6 +62,16 @@ class TinyCausalTransformer(nn.Module):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        """Compute next-token logits for each position.
+
+        Args:
+            input_ids: LongTensor of shape `[batch_size, seq_len]`.
+
+        Returns:
+            FloatTensor of shape `[batch_size, seq_len, vocab_size]`. Position
+            `t` contains logits for predicting the token after the prefix ending
+            at position `t`.
+        """
         batch_size, seq_len = input_ids.shape
         if seq_len > self.max_seq_len:
             raise ValueError(f"seq_len {seq_len} exceeds max_seq_len {self.max_seq_len}")

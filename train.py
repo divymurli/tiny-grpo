@@ -20,6 +20,7 @@ from tiny_grpo.utils import pick_device, seed_everything
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line hyperparameters for the toy GRPO run."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=400)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -43,6 +44,12 @@ def evaluate(
     device: torch.device,
     max_new_tokens: int,
 ) -> float:
+    """Evaluate the current policy on all ten digit prompts.
+
+    Eval uses one low-temperature completion per digit, so it is closer to a
+    greedy accuracy check than to the stochastic training reward. In this toy
+    environment the mean reward is also exact parity accuracy.
+    """
     prompts, digits = all_digit_prompts(tokenizer, device)
     completions, _, _ = sample_completions(
         model=model,
@@ -60,6 +67,16 @@ def evaluate(
 
 
 def main() -> None:
+    """Run GRPO training on the synthetic parity task.
+
+    Each training step:
+    1. reads a batch of digit prompts,
+    2. samples `group_size` completions per prompt,
+    3. scores completions with the parity reward,
+    4. normalizes rewards within each prompt group,
+    5. computes the GRPO loss against a frozen reference model,
+    6. updates the trainable policy.
+    """
     args = parse_args()
     seed_everything(args.seed)
     device = pick_device(args.device)

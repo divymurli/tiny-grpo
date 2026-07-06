@@ -11,6 +11,18 @@ def parity_rewards(
     completions: torch.Tensor,
     group_size: int,
 ) -> torch.Tensor:
+    """Score generated completions for the parity task.
+
+    Each prompt has `group_size` sampled completions. If `digits` has shape
+    `[batch_size]`, `completions` has shape
+    `[batch_size * group_size, max_new_tokens]`. `repeat_interleave` expands the
+    labels so completion rows line up with their original digit:
+
+    `digits=[5, 6]`, `group_size=4` becomes `[5, 5, 5, 5, 6, 6, 6, 6]`.
+
+    Reward is 1.0 when the first non-special generated token is the correct
+    parity word, and 0.0 otherwise.
+    """
     repeated_digits = digits.repeat_interleave(group_size)
     rewards = torch.zeros(completions.shape[0], device=completions.device)
 

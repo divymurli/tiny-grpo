@@ -1,7 +1,45 @@
 from __future__ import annotations
 
+"""Inspect the parity reward function and grouped reward statistics.
+
+Example ways to run:
+
+    # Inspect the default handcrafted alignment and random reward summary.
+    python scripts/inspect_rewards.py
+
+    # Print a tiny CPU-only handcrafted example.
+    python scripts/inspect_rewards.py --batch-size 2 --group-size 4 --device cpu
+
+    # Estimate the random reward distribution over more batches.
+    python scripts/inspect_rewards.py --num-random-batches 1000
+
+    # See how group reward variance changes with more completions per prompt.
+    python scripts/inspect_rewards.py --group-size 8
+
+Example handcrafted output, with exact digits depending on the seed:
+
+    digits:
+    tensor([5, 6])
+
+    digits.repeat_interleave(group_size=4):
+    tensor([5, 5, 5, 5, 6, 6, 6, 6])
+
+    00 digit=5 expected= odd completion_ids=[13, 2] decoded='odd' reward=1.0
+    01 digit=5 expected= odd completion_ids=[14, 2] decoded='even' reward=0.0
+    02 digit=5 expected= odd completion_ids=[2, 2] decoded='<empty>' reward=0.0
+    03 digit=5 expected= odd completion_ids=[6, 2] decoded='3' reward=0.0
+
+    group reward stats:
+      group=00 digit=5 rewards=[1.0, 0.0, 0.0, 0.0] mean=0.250 std=0.433
+      group=01 digit=6 rewards=[0.0, 1.0, 0.0, 0.0] mean=0.250 std=0.433
+
+The random-completion section then estimates sparse-reward behavior before a
+model has learned anything.
+"""
+
 import argparse
 import sys
+import textwrap
 from collections import Counter
 from pathlib import Path
 
@@ -17,7 +55,20 @@ from tiny_grpo.utils import pick_device, seed_everything
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Inspect parity rewards and label alignment.")
+    """Parse options for the reward-alignment inspection script."""
+    parser = argparse.ArgumentParser(
+        description="Inspect parity rewards and label alignment.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent(
+            """\
+            Examples:
+              python scripts/inspect_rewards.py
+              python scripts/inspect_rewards.py --batch-size 2 --group-size 4 --device cpu
+              python scripts/inspect_rewards.py --num-random-batches 1000
+              python scripts/inspect_rewards.py --group-size 8
+            """
+        ),
+    )
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--group-size", type=int, default=4)
     parser.add_argument("--dataset-size", type=int, default=32)
@@ -28,6 +79,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def make_demo_completions(tokenizer: TinyTokenizer, total: int, device: torch.device) -> torch.Tensor:
+    """Create deterministic completions for hand-checking reward behavior.
+
+    The pattern includes a correct-looking odd token, a correct-looking even
+    token, an empty completion, and an irrelevant digit token. Repeating this
+    pattern makes it easy to see which completions receive reward under each
+    prompt digit.
+    """
     pattern = [
         [tokenizer.token_to_id["odd"], tokenizer.eos_id],
         [tokenizer.token_to_id["even"], tokenizer.eos_id],
@@ -44,6 +102,11 @@ def random_completions(
     max_new_tokens: int,
     device: torch.device,
 ) -> torch.Tensor:
+    """Sample random completion token ids without using a model.
+
+    This gives a quick baseline for reward sparsity and zero-variance groups
+    before the policy learns anything.
+    """
     return torch.randint(
         low=0,
         high=tokenizer.vocab_size,
@@ -59,6 +122,12 @@ def print_alignment(
     completions: torch.Tensor,
     group_size: int,
 ) -> None:
+    """Print row-by-row reward alignment for a handcrafted completion batch.
+
+    The output makes `digits.repeat_interleave(group_size)` explicit, then shows
+    how each completion row maps to a digit, expected answer, first content
+    token, and scalar reward.
+    """
     repeated_digits = digits.repeat_interleave(group_size)
     rewards = parity_rewards(tokenizer, digits, completions, group_size)
     grouped_rewards = rewards.view(digits.shape[0], group_size)
@@ -101,6 +170,12 @@ def summarize_random_distribution(
     num_batches: int,
     device: torch.device,
 ) -> None:
+    """Estimate reward distribution for random completions.
+
+    Prints mean reward, per-group reward standard deviation, zero-variance group
+    count, and first-token frequencies. These are the same kinds of diagnostics
+    that matter later for retrieval GRPO.
+    """
     reward_counter: Counter[float] = Counter()
     first_token_counter: Counter[str] = Counter()
     total = 0
@@ -151,6 +226,7 @@ def summarize_random_distribution(
 
 
 def main() -> None:
+    """Run handcrafted and random reward inspections for the parity task."""
     args = parse_args()
     seed_everything(args.seed)
     device = pick_device(args.device)
@@ -163,6 +239,8 @@ def main() -> None:
         dataset_size=args.dataset_size,
         seed=args.seed,
     )
+    import ipdb
+    ipdb.set_trace()
 
     batch = next(iter(loader))
     digits = batch["digits"]
