@@ -29,6 +29,56 @@ For a short smoke test:
 python train.py --steps 20 --batch-size 8 --group-size 4 --eval-every 10
 ```
 
+## GSM8K Smoke Test
+
+The GSM8K path is a bridge from the tiny parity task to real LLM GRPO. It uses
+Hugging Face models/tokenizers and optional LoRA.
+
+Install optional dependencies:
+
+```bash
+pip install -e ".[gsm8k]"
+```
+
+Prepare small local splits:
+
+```bash
+python scripts/prepare_gsm8k.py --output-dir data/gsm8k --train-limit 500 --test-limit 100
+```
+
+Inspect examples and prompts:
+
+```bash
+python scripts/inspect_gsm8k.py --path data/gsm8k/train.jsonl --limit 3
+```
+
+Evaluate a frozen model:
+
+```bash
+python scripts/evaluate_gsm8k.py \
+  --path data/gsm8k/test.jsonl \
+  --model-name Qwen/Qwen2.5-0.5B-Instruct \
+  --limit 20
+```
+
+Run a tiny GRPO post-training smoke test:
+
+```bash
+python scripts/train_grpo_gsm8k.py \
+  --train-path data/gsm8k/train.jsonl \
+  --val-path data/gsm8k/test.jsonl \
+  --model-name Qwen/Qwen2.5-0.5B-Instruct \
+  --use-lora \
+  --steps 50 \
+  --batch-size 2 \
+  --group-size 4 \
+  --kl-beta 0.0
+```
+
+This is meant to validate generation, answer parsing, grouped rewards,
+old/new/reference logprobs, and LoRA updates. It is not tuned for GSM8K
+accuracy.
+
 ## Layout
 
 ```text
@@ -38,6 +88,8 @@ tiny-grpo/
     data.py       # dataset, collator, and infinite loader
     generate.py   # autoregressive sampling
     grpo.py       # advantages and loss
+    gsm8k.py      # GSM8K JSONL data, prompts, parsing, and rewards
+    hf_grpo.py    # Hugging Face generation/logprob/GRPO helpers
     model.py      # tiny causal Transformer
     rewards.py    # parity reward
     tokenizer.py  # tiny hand-written tokenizer

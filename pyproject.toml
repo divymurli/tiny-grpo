@@ -7,5 +7,13 @@ dependencies = [
   "torch",
 ]
 
+[project.optional-dependencies]
+gsm8k = [
+  "accelerate",
+  "datasets",
+  "peft",
+  "transformers",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
