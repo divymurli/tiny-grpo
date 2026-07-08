@@ -138,7 +138,7 @@ def main() -> None:
                 f"step={step:04d} reward={rewards.mean().item():.3f} "
                 f"adv_std={advantages.std(unbiased=False).item():.3f} "
                 f"loss={stats['loss']:.4f} ref_kl={stats['ref_kl']:.4f} "
-                f"clip={stats['clip_frac']:.3f}"
+                f"clipped_token_frac={stats['clipped_token_frac']:.3f}"
         )
         if step % args.eval_every == 0:
             evaluate(policy, tokenizer, device, args.max_new_tokens)

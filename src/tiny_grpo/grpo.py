@@ -78,13 +78,13 @@ def grpo_loss(
 
     with torch.no_grad():
         approx_kl = ((new_logprobs - old_logprobs) * completion_mask).sum() / denom
-        clip_frac = ((ratio - 1.0).abs() > clip_eps).float()
-        clip_frac = (clip_frac * completion_mask).sum() / denom
+        clipped_token_frac = ((ratio - 1.0).abs() > clip_eps).float()
+        clipped_token_frac = (clipped_token_frac * completion_mask).sum() / denom
 
     stats = {
         "loss": float(loss.detach().cpu()),
         "approx_kl": float(approx_kl.detach().cpu()),
         "ref_kl": float((sampled_kl * completion_mask).sum().detach().cpu() / denom.cpu()),
-        "clip_frac": float(clip_frac.detach().cpu()),
+        "clipped_token_frac": float(clipped_token_frac.detach().cpu()),
     }
     return loss, stats
