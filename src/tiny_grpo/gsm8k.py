@@ -147,7 +147,8 @@ def parse_model_answer(text: str) -> str | None:
     """Extract a normalized numeric answer from model output text.
 
     The parser takes the last number in the output. This handles outputs like
-    `"42"`, `"Answer: 42"`, `"Final answer: 42"`, and `"#### 42"`.
+    `"42"`, `"Answer: 42"`, `"Final answer: 42"`, and `"#### 42"`. In particular,
+    the model should output the final answer at the very end.
     """
     matches = NUMBER_RE.findall(text.replace(",", ""))
     if not matches:
@@ -178,6 +179,7 @@ def gsm8k_rewards(
     with the sampled completions, just like `repeat_interleave` in the parity
     reward.
     """
+    # [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, ..., B-1, B-1, B-1, B-1, B-1]
     gold_indices = torch.arange(len(gold_answers), device=device).repeat_interleave(group_size)
     parsed = [parse_model_answer(output) for output in outputs]
     rewards = torch.zeros(len(outputs), dtype=torch.float32, device=device)
