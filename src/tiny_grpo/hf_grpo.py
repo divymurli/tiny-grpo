@@ -45,6 +45,11 @@ def gather_hf_completion_logprobs(
     logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
     logits = logits[:, :-1, :]
     targets = input_ids[:, 1:]
+    # gather token log probs along dim 2 [bs, seq_len, vocab_size]
+    # targets has shape [bs, seq_len]
+    # targets[:, :, None] adds an additional axis to [bs, seq_len, 1] (cf unsqueeze)
+    # .gather(2, targets[:, :, None]) means to get the index of the logprob in the second
+    # dim of the log probs tensor
     token_logprobs = F.log_softmax(logits, dim=-1).gather(2, targets[:, :, None]).squeeze(2)
     prompt_len = prompt_ids.shape[1]
     return token_logprobs[:, prompt_len - 1 :]

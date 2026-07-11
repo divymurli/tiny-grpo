@@ -113,19 +113,21 @@ def make_gsm8k_loader(
 def make_gsm8k_prompt(question: str, include_reasoning: bool = False) -> str:
     """Format a GSM8K question as a model prompt.
 
-    The default asks for only the final numeric answer. That makes the reward
-    sparse but easy to inspect. You can later switch to a reasoning prompt once
-    the GRPO machinery is working.
+    The parser uses the last number in the model output as the predicted answer,
+    so both prompt styles explicitly require the final numeric answer to appear
+    at the very end.
     """
     if include_reasoning:
         return (
-            "Solve the math problem. Show concise reasoning, then end with "
-            "'Final answer: <number>'.\n\n"
+            "Solve the math problem. Show concise reasoning if needed. "
+            "End your response with exactly 'Final answer: <number>', with the "
+            "number as the final text in your response.\n\n"
             f"Question: {question}\n"
             "Solution:"
         )
     return (
-        "Solve the math problem. Return only the final numeric answer.\n\n"
+        "Solve the math problem. Return only the final numeric answer, with the "
+        "number as the final text in your response.\n\n"
         f"Question: {question}\n"
         "Answer:"
     )
@@ -176,14 +178,11 @@ def gsm8k_rewards(
     with the sampled completions, just like `repeat_interleave` in the parity
     reward.
     """
-    repeated_gold = [
-        gold
-        for gold in gold_answers
-        for _ in range(group_size)
-    ]
+    gold_indices = torch.arange(len(gold_answers), device=device).repeat_interleave(group_size)
     parsed = [parse_model_answer(output) for output in outputs]
     rewards = torch.zeros(len(outputs), dtype=torch.float32, device=device)
-    for i, (pred, gold) in enumerate(zip(parsed, repeated_gold)):
+    for i, pred in enumerate(parsed):
+        gold = gold_answers[int(gold_indices[i].item())]
         rewards[i] = 1.0 if pred == gold else 0.0
     return rewards, parsed
 
