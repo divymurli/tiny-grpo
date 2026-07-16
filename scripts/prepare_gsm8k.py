@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=Path("data/gsm8k"))
     parser.add_argument("--train-limit", type=int, default=500)
     parser.add_argument("--test-limit", type=int, default=100)
+    parser.add_argument("--dataset-name", default="openai/gsm8k")
     return parser.parse_args()
 
 
@@ -51,7 +52,7 @@ def main() -> None:
     except ImportError as exc:
         raise SystemExit("Install optional deps first: pip install datasets") from exc
 
-    dataset = load_dataset("gsm8k", "main")
+    dataset = load_dataset(args.dataset_name, "main")
     write_split(dataset["train"], args.output_dir / "train.jsonl", args.train_limit)
     write_split(dataset["test"], args.output_dir / "test.jsonl", args.test_limit)
     print(f"wrote {args.output_dir / 'train.jsonl'}")
